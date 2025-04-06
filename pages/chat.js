@@ -6,16 +6,15 @@ export default function Chat() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [conversations, setConversations] = useState([
-    { id: 1, title: '关于React Hooks的讨论', date: '3天前' },
-    { id: 2, title: 'Next.js项目优化建议', date: '5天前' },
-    { id: 3, title: 'CSS网格布局问题', date: '1周前' },
-  ]);
+  const [conversations, setConversations] = useState([]);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [currentConversation, setCurrentConversation] = useState(null);
   const [systemPrompt, setSystemPrompt] = useState('');
   const [showPromptPresets, setShowPromptPresets] = useState(false);
+  const [theme, setTheme] = useState('light'); // 主题状态
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
+  const [savedConversations, setSavedConversations] = useState({}); // 保存所有对话
 
   // 预设提示词列表
   const promptPresets = [
@@ -41,6 +40,76 @@ export default function Chat() {
   const eventSourceRef = useRef(null);
   const inputRef = useRef(null);
 
+  // 初始化主题
+  useEffect(() => {
+    // 从localStorage获取主题设置
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
+    
+    // 应用主题到文档
+    if (savedTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    
+    // 加载保存的对话
+    const savedConvs = localStorage.getItem('conversations');
+    if (savedConvs) {
+      try {
+        const parsed = JSON.parse(savedConvs);
+        setSavedConversations(parsed);
+        
+        // 构建会话列表
+        const convList = Object.keys(parsed).map(id => {
+          const conv = parsed[id];
+          return {
+            id,
+            title: conv.title || '未命名对话',
+            date: formatDate(conv.timestamp || Date.now())
+          };
+        }).sort((a, b) => b.date.localeCompare(a.date));
+        
+        setConversations(convList);
+      } catch (e) {
+        console.error('加载对话失败', e);
+      }
+    }
+    
+    setIsFirstLoad(false);
+  }, []);
+
+  // 切换主题
+  const toggleTheme = (newTheme) => {
+    const themeValue = newTheme || (theme === 'light' ? 'dark' : 'light');
+    setTheme(themeValue);
+    localStorage.setItem('theme', themeValue);
+    
+    if (themeValue === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
+
+  // 格式化日期
+  const formatDate = (timestamp) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return '今天';
+    if (diffDays === 1) return '昨天';
+    if (diffDays < 7) return `${diffDays}天前`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)}周前`;
+    
+    return date.toLocaleDateString('zh-CN', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
   // 自动滚动到对话底部
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -63,7 +132,122 @@ export default function Chat() {
   useEffect(() => {
     inputRef.current?.focus();
   }, [isLoading]);
+  
+  // 加载对话
+  const loadConversation = (id) => {
+    if (savedConversations[id]) {
+      const conv = savedConversations[id];
+      setMessages(conv.messages || []);
+      setSystemPrompt(conv.systemPrompt || '');
+      setCurrentConversation({
+        id,
+        title: conv.title || '未命名对话',
+        date: formatDate(conv.timestamp || Date.now())
+      });
+    }
+  };
+  
+  // 保存当前对话
+  const saveCurrentConversation = () => {
+    if (!messages.length) return;
+    
+    const id = currentConversation?.id || Date.now().toString();
+    const title = messages[0]?.text.substring(0, 30) || '新对话';
+    const newConv = {
+      id,
+      title,
+      messages,
+      systemPrompt,
+      timestamp: Date.now()
+    };
+    
+    // 更新保存的对话
+    const updatedConvs = {
+      ...savedConversations,
+      [id]: newConv
+    };
+    
+    setSavedConversations(updatedConvs);
+    localStorage.setItem('conversations', JSON.stringify(updatedConvs));
+    
+    // 如果是新对话，更新当前对话和对话列表
+    if (!currentConversation) {
+      const newConvInfo = {
+        id,
+        title,
+        date: formatDate(Date.now())
+      };
+      setCurrentConversation(newConvInfo);
+      setConversations(prev => [newConvInfo, ...prev]);
+    } else {
+      // 更新现有对话信息
+      setConversations(prev => 
+        prev.map(c => c.id === id ? {
+          ...c,
+          title,
+          date: formatDate(Date.now())
+        } : c)
+      );
+    }
+  };
+  
+  // 自动保存对话
+  useEffect(() => {
+    if (!isFirstLoad && messages.length > 0) {
+      saveCurrentConversation();
+    }
+  }, [messages]);
 
+  // 清理消息文本，去除JSON和重复内容
+  const cleanMessageText = (text) => {
+    if (!text) return '';
+    
+    // 检测是否是KoaSayi相关的特殊响应格式
+    if (text.includes('KoaSayi') && text.includes('index') && text.includes('url')) {
+      // 如果是包含URL列表的响应，进行特殊处理
+      const lines = text.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes('[{"index":') || lines[i].includes('KoaSayi')) {
+          lines[i] = '';
+        }
+      }
+      text = lines.filter(line => line.trim()).join('\n');
+    }
+    
+    // 去除JSON数据
+    let cleaned = text;
+    
+    // 检测是否为完整的JSON格式并移除
+    if (/^\s*[\[\{]/.test(cleaned) && /[\]\}]\s*$/.test(cleaned)) {
+      try {
+        JSON.parse(cleaned);
+        // 如果能成功解析为JSON，则返回空字符串
+        return '';
+      } catch (e) {
+        // 不是有效JSON，继续处理
+      }
+    }
+    
+    // 移除各种JSON片段格式
+    cleaned = cleaned.replace(/\[\s*\{\s*".*?"\s*:\s*.*?\}\s*\]/g, '');
+    cleaned = cleaned.replace(/\[\s*\{\s*"index".*?\}\s*\]/g, '');
+    
+    // 移除URL地址
+    cleaned = cleaned.replace(/https?:\/\/\S+/g, '');
+    
+    // 移除可能的KoaSayi引用格式（基于示例）
+    cleaned = cleaned.replace(/KoaSayi.*?哔哩哔哩视频/g, '');
+    cleaned = cleaned.replace(/KoaSayi.*?二次元社区/g, '');
+    cleaned = cleaned.replace(/KoaSayi.*?个人主页/g, '');
+    cleaned = cleaned.replace(/KoaSayi.*?个人中心/g, '');
+    
+    // 移除数字索引前缀 (例如 "1. ", "2. ")
+    cleaned = cleaned.replace(/^\d+\.\s+/gm, '');
+    
+    return cleaned;
+  };
+  
+  // 在处理每条消息时使用清理函数
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -96,6 +280,9 @@ export default function Chat() {
         eventSourceRef.current.close();
       }
       
+      // 获取历史消息 (只保留最近10条作为上下文)
+      const historyMessages = messages.slice(-10);
+      
       // 创建POST请求
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -104,7 +291,8 @@ export default function Chat() {
         },
         body: JSON.stringify({ 
           message: userInput,
-          systemPrompt: systemPrompt // 添加系统提示词
+          systemPrompt: systemPrompt,
+          history: historyMessages 
         }),
       });
       
@@ -112,8 +300,9 @@ export default function Chat() {
         throw new Error('API请求失败');
       }
       
-      // 创建新的EventSource连接
-      const eventSource = new EventSource(`/api/chat?message=${encodeURIComponent(userInput)}&systemPrompt=${encodeURIComponent(systemPrompt)}`);
+      // 创建新的EventSource连接 - 将history序列化为JSON字符串传递
+      const historyParam = encodeURIComponent(JSON.stringify(historyMessages));
+      const eventSource = new EventSource(`/api/chat?message=${encodeURIComponent(userInput)}&systemPrompt=${encodeURIComponent(systemPrompt)}&history=${historyParam}`);
       eventSourceRef.current = eventSource;
       
       // 处理接收到的消息
@@ -126,7 +315,7 @@ export default function Chat() {
             setMessages(prev => {
               const newMessages = [...prev];
               const lastMessage = newMessages[newMessages.length - 1];
-              if (lastMessage.sender === 'ai') {
+              if (lastMessage && lastMessage.sender === 'ai') {
                 lastMessage.text = `错误: ${data.error}`;
               }
               return newMessages;
@@ -136,13 +325,14 @@ export default function Chat() {
             return;
           }
           
-          // 正常情况，更新最后一条AI消息
+          // 正常情况，更新最后一条AI消息，使用清理函数
           if (data.text !== undefined) {
             setMessages(prev => {
               const newMessages = [...prev];
               const lastMessage = newMessages[newMessages.length - 1];
-              if (lastMessage.sender === 'ai') {
-                lastMessage.text += data.text;
+              if (lastMessage && lastMessage.sender === 'ai') {
+                // 使用清理函数处理文本
+                lastMessage.text += cleanMessageText(data.text);
               }
               return newMessages;
             });
@@ -152,9 +342,59 @@ export default function Chat() {
           if (data.isEnd) {
             eventSource.close();
             setIsLoading(false);
+            
+            // 对最后的消息进行额外处理，去除重复内容和JSON
+            setMessages(prev => {
+              const newMessages = [...prev];
+              const lastMessage = newMessages[newMessages.length - 1];
+              if (lastMessage && lastMessage.sender === 'ai') {
+                // 最终处理，去除重复和特殊字符
+                let text = lastMessage.text;
+                
+                // 针对KoaSayi场景的特殊处理
+                if (text.includes('KoaSayi')) {
+                  // 移除JSON开头的行
+                  const lines = text.split('\n');
+                  const cleanedLines = lines.filter(line => 
+                    !line.includes('[{"index"') && 
+                    !line.includes('url') && 
+                    !line.includes('title') &&
+                    !line.includes('KoaSayi个人')
+                  );
+                  text = cleanedLines.join('\n');
+                }
+                
+                // 移除所有JSON格式数据
+                text = text.replace(/\[\s*\{.*?\}\s*\]/g, '');
+                text = text.replace(/\[(\{"index".*?\})+\]/g, '');
+                
+                // 规范化空白字符和去除首尾空白
+                text = text.replace(/\s+/g, ' ');
+                text = text.trim();
+                
+                lastMessage.text = text;
+              }
+              return newMessages;
+            });
+            
+            // 保存对话
+            setTimeout(() => saveCurrentConversation(), 300);
           }
         } catch (error) {
           console.error('解析消息错误:', error);
+          // 遇到解析错误时也关闭连接和重置状态
+          eventSource.close();
+          setIsLoading(false);
+          
+          // 更新UI显示错误信息
+          setMessages(prev => {
+            const newMessages = [...prev];
+            const lastMessage = newMessages[newMessages.length - 1];
+            if (lastMessage && lastMessage.sender === 'ai' && !lastMessage.text) {
+              lastMessage.text = '消息解析出错，请重试';
+            }
+            return newMessages;
+          });
         }
       };
       
@@ -164,7 +404,7 @@ export default function Chat() {
         setMessages(prev => {
           const newMessages = [...prev];
           const lastMessage = newMessages[newMessages.length - 1];
-          if (lastMessage.sender === 'ai' && !lastMessage.text) {
+          if (lastMessage && lastMessage.sender === 'ai' && !lastMessage.text) {
             lastMessage.text = '连接出错，请重试';
           }
           return newMessages;
@@ -178,7 +418,7 @@ export default function Chat() {
       setMessages(prev => {
         const newMessages = [...prev];
         const lastMessage = newMessages[newMessages.length - 1];
-        if (lastMessage.sender === 'ai') {
+        if (lastMessage && lastMessage.sender === 'ai') {
           lastMessage.text = '发送消息时出错，请重试。';
         }
         return newMessages;
@@ -207,6 +447,31 @@ export default function Chat() {
   const applyPromptPreset = (preset) => {
     setSystemPrompt(preset.prompt);
     setShowPromptPresets(false);
+  };
+  
+  // 删除对话
+  const deleteConversation = (id) => {
+    const updatedConvs = { ...savedConversations };
+    delete updatedConvs[id];
+    
+    setSavedConversations(updatedConvs);
+    localStorage.setItem('conversations', JSON.stringify(updatedConvs));
+    
+    setConversations(prev => prev.filter(c => c.id !== id));
+    
+    if (currentConversation?.id === id) {
+      clearChat();
+      setCurrentConversation(null);
+    }
+  };
+  
+  // 清除所有对话
+  const clearAllConversations = () => {
+    setSavedConversations({});
+    localStorage.removeItem('conversations');
+    setConversations([]);
+    clearChat();
+    setCurrentConversation(null);
   };
 
   return (

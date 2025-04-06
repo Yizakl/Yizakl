@@ -14,6 +14,18 @@ export default async function handler(req, res) {
       ? req.body.systemPrompt
       : req.query.systemPrompt || '';
     
+    // 获取历史消息数组
+    let historyMessages = [];
+    if (req.method === 'POST') {
+      historyMessages = req.body.history || [];
+    } else if (req.query.history) {
+      try {
+        historyMessages = JSON.parse(decodeURIComponent(req.query.history)) || [];
+      } catch (e) {
+        console.error('解析历史消息参数错误:', e);
+      }
+    }
+    
     if (!message) {
       return res.status(400).json({ error: '请提供消息内容' });
     }
@@ -64,6 +76,22 @@ export default async function handler(req, res) {
     // 完整的WebSocket URL
     const wsUrl = `${GPT_URL}?${params.toString()}`;
     
+    // 构建对话历史记录
+    const textMessages = [{ role: "system", content: systemPrompt || "" }];
+    
+    // 添加历史消息
+    if (historyMessages && historyMessages.length > 0) {
+      historyMessages.forEach(msg => {
+        textMessages.push({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.text
+        });
+      });
+    }
+    
+    // 添加当前用户消息
+    textMessages.push({ role: "user", content: message });
+    
     // 构建请求数据
     const requestData = {
       header: {
@@ -80,16 +108,7 @@ export default async function handler(req, res) {
       },
       payload: {
         message: {
-          text: [
-            {
-              role: "system",
-              content: systemPrompt || ""
-            },
-            {
-              role: "user",
-              content: message
-            }
-          ]
+          text: textMessages
         }
       }
     };
@@ -138,12 +157,45 @@ export default async function handler(req, res) {
           return;
         }
         
-        const choices = parsedData.payload.choices;
-        const status = choices.status;
+        // 检查各种可能的响应格式
+        let content = '';
+        let status = 0;
         
-        // 如果有内容，流式传输出来
-        if (choices.text && choices.text.length > 0) {
-          const content = choices.text[0].content;
+        // 处理第一种格式 - choices
+        if (parsedData.payload && parsedData.payload.choices) {
+          const choices = parsedData.payload.choices;
+          status = choices.status || 0;
+          
+          if (choices.text && choices.text.length > 0) {
+            content = choices.text[0].content || '';
+          }
+        } 
+        // 处理第二种格式 - plugins.text
+        else if (parsedData.payload && parsedData.payload.plugins && parsedData.payload.plugins.text) {
+          const textArray = parsedData.payload.plugins.text;
+          if (textArray && textArray.length > 0) {
+            content = textArray[0].content || '';
+          }
+          
+          // 从header中获取状态
+          status = parsedData.header.status || 0;
+        }
+        // 未知格式
+        else {
+          console.error('API返回数据格式无法解析:', parsedData);
+          sendStreamData({ 
+            error: '服务器返回的数据格式异常' 
+          });
+          return;
+        }
+        
+        // 清理内容 - 过滤JSON和重复内容
+        if (content) {
+          content = cleanResponseContent(content);
+        }
+        
+        // 发送内容
+        if (content) {
           sendStreamData({ 
             text: content,
             isEnd: status === 2
@@ -161,6 +213,95 @@ export default async function handler(req, res) {
         sendStreamData({ error: '解析消息出错' });
       }
     });
+    
+    // 清理响应内容 - 去除JSON和重复内容
+    function cleanResponseContent(content) {
+      // 原始内容记录，用于极端情况下返回
+      const originalContent = content;
+      
+      try {
+        // 尝试检测并移除JSON数据
+        content = content.replace(/\[\s*\{\s*".*?"\s*:\s*.*?\}\s*\]/g, '');
+        content = content.replace(/\[\s*\{\s*"index".*?\}\s*\]/g, '');
+        
+        // 针对URL列表的特殊处理
+        content = content.replace(/\[\s*\{"index".*?"url".*?"title".*?\}\s*\]\s*\[\s*\{"index".*?"url".*?"title".*?\}\s*\]/g, '');
+        
+        // 去除可能的URL列表
+        content = content.replace(/https?:\/\/\S+/g, '');
+        
+        // 检测并移除重复的段落和句子
+        let paragraphs = content.split('\n\n');
+        let cleanedParagraphs = [];
+        let seenParagraphs = new Set();
+        
+        for (const paragraph of paragraphs) {
+          const trimmed = paragraph.trim();
+          if (!trimmed) continue;
+          
+          // 检查是否是重复段落
+          if (!seenParagraphs.has(trimmed)) {
+            seenParagraphs.add(trimmed);
+            cleanedParagraphs.push(trimmed);
+          }
+        }
+        
+        // 合并清理后的段落
+        content = cleanedParagraphs.join('\n\n');
+        
+        // 再次检查句子级别的重复
+        let sentences = content.split(/(?<=\.)\s+/);
+        let uniqueSentences = [];
+        let seenSentences = new Set();
+        
+        for (const sentence of sentences) {
+          const trimmed = sentence.trim();
+          if (!trimmed) continue;
+          
+          // 如果句子中包含数字编号（如 "1."），检查是否已有类似内容
+          const match = trimmed.match(/^\d+\.\s*(.*)/);
+          if (match) {
+            const sentenceContent = match[1];
+            let isDuplicate = false;
+            
+            // 检查是否与其他编号内容重复
+            for (const seen of seenSentences) {
+              if (seen.includes(sentenceContent) || sentenceContent.includes(seen)) {
+                isDuplicate = true;
+                break;
+              }
+            }
+            
+            if (!isDuplicate) {
+              seenSentences.add(sentenceContent);
+              uniqueSentences.push(trimmed);
+            }
+          } else if (!seenSentences.has(trimmed)) {
+            // 普通句子检查
+            seenSentences.add(trimmed);
+            uniqueSentences.push(trimmed);
+          }
+        }
+        
+        // 重新组合内容
+        content = uniqueSentences.join(' ');
+        
+        // 修复可能的格式问题
+        content = content.replace(/\.\s+\./g, '.');
+        content = content.replace(/\s+/g, ' ');
+        content = content.trim();
+        
+        // 如果清理过度导致内容为空，返回原始内容
+        if (!content) {
+          return originalContent;
+        }
+        
+        return content;
+      } catch (error) {
+        console.error('清理内容时出错:', error);
+        return originalContent;
+      }
+    }
     
     // 错误处理
     ws.on('error', (error) => {
