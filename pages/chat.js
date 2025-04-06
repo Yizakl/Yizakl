@@ -16,6 +16,7 @@ export default function Chat() {
   const [theme, setTheme] = useState('light'); // 主题状态
   const [isFirstLoad, setIsFirstLoad] = useState(true);
   const [savedConversations, setSavedConversations] = useState({}); // 保存所有对话
+  const [fontSize, setFontSize] = useState('medium');
 
   // 预设提示词列表
   const promptPresets = [
@@ -53,6 +54,10 @@ export default function Chat() {
     } else {
       document.documentElement.classList.remove('dark');
     }
+    
+    // 获取字体大小设置
+    const savedFontSize = localStorage.getItem('fontSize') || 'medium';
+    setFontSize(savedFontSize);
     
     // 加载保存的对话
     const savedConvs = localStorage.getItem('conversations');
@@ -612,19 +617,48 @@ export default function Chat() {
     return result.join('\n');
   };
 
+  // 切换字体大小
+  const changeFontSize = (size) => {
+    setFontSize(size);
+    localStorage.setItem('fontSize', size);
+  };
+  
+  // 应用设置并关闭设置面板
+  const applySettings = () => {
+    // 设置已经实时保存，只需关闭面板
+    setShowSettings(false);
+  };
+
+  // 监听字体大小变化
+  useEffect(() => {
+    const root = document.documentElement;
+    
+    // 设置CSS变量
+    if (fontSize === 'small') {
+      root.style.setProperty('--font-size-base', '0.875rem');
+      root.style.setProperty('--font-size-msg', '0.875rem');
+    } else if (fontSize === 'medium') {
+      root.style.setProperty('--font-size-base', '1rem');
+      root.style.setProperty('--font-size-msg', '1rem');
+    } else if (fontSize === 'large') {
+      root.style.setProperty('--font-size-base', '1.125rem');
+      root.style.setProperty('--font-size-msg', '1.125rem');
+    }
+  }, [fontSize]);
+
   return (
-    <div className={`flex h-screen ${theme === 'dark' ? 'dark' : ''}`}>
+    <div className={`flex h-screen ${theme === 'dark' ? 'dark' : ''} text-size-${fontSize}`}>
       <Head>
         <title>星火AI助手 | 智能对话</title>
         <meta name="description" content="使用讯飞星火大模型进行智能对话" />
       </Head>
       
       {/* 侧边栏 */}
-      <div className={`bg-gray-900 transition-all duration-300 ${showSidebar ? 'w-64' : 'w-0'} h-screen overflow-hidden flex flex-col`}>
-        <div className="p-4">
+      <div className={`bg-gray-900 dark:bg-gray-950 transition-all duration-300 ${showSidebar ? 'w-64' : 'w-0'} h-screen overflow-hidden flex flex-col`}>
+        <div className="p-3.5">
           <button
             onClick={createNewChat}
-            className="flex items-center justify-center w-full px-4 py-2 text-sm text-white bg-gray-700 rounded-md hover:bg-gray-600 transition-colors"
+            className="flex items-center justify-center w-full px-4 py-2 text-sm text-white bg-gray-800 dark:bg-gray-800 rounded-md hover:bg-gray-700 dark:hover:bg-gray-700 transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -659,7 +693,7 @@ export default function Chat() {
           ))}
         </div>
         
-        <div className="p-4 border-t border-gray-700">
+        <div className="p-3 border-t border-gray-800 dark:border-gray-800">
           <button
             onClick={toggleSettings}
             className="flex items-center w-full px-3 py-2 text-sm rounded-md transition-colors text-gray-300 hover:bg-gray-800 hover:text-white"
@@ -674,28 +708,43 @@ export default function Chat() {
       </div>
       
       {/* 主内容区 */}
-      <div className="flex-1 flex flex-col h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+      <div className="flex-1 flex flex-col h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
         {/* 顶部栏 */}
-        <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center shadow-sm">
           <button 
             onClick={() => setShowSidebar(!showSidebar)}
-            className="text-gray-500 hover:text-gray-700 p-2 rounded-md"
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 p-1.5 rounded-md"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
           
-          <div className="ml-4 flex-1">
-            <h1 className="text-lg font-medium">
+          <div className="ml-3 flex-1">
+            <h1 className="text-base font-medium dark:text-white">
               {currentConversation ? currentConversation.title : '新对话'}
             </h1>
           </div>
           
           <div className="flex items-center space-x-3">
             <button
+              onClick={() => toggleTheme()}
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 p-1.5 rounded-md"
+              title={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
+            >
+              {theme === 'dark' ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
+            <button
               onClick={clearChat}
-              className="text-gray-500 hover:text-gray-700 p-2 rounded-md"
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 p-1.5 rounded-md"
               title="清空对话"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -706,10 +755,10 @@ export default function Chat() {
         </div>
         
         {/* 对话区域 */}
-        <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-3 sm:p-4">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 animate-fadeIn">
-              <div className="w-20 h-20 rounded-full mb-6 bg-primary-50 dark:bg-gray-800 flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full mb-5 bg-primary-50 dark:bg-gray-800 flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-primary-500 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
@@ -718,16 +767,16 @@ export default function Chat() {
               <p className="text-sm text-center max-w-md mb-4">你可以询问任何问题，AI助手将为你提供专业解答</p>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto space-y-6">
+            <div className="max-w-3xl mx-auto space-y-5">
               {messages.map((message, index) => (
                 <div
                   key={message.id}
                   className={`flex animate-messageIn`}
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  <div className={`flex max-w-[90%] ${message.sender === 'user' ? 'ml-auto' : ''}`}>
+                  <div className={`flex max-w-[92%] ${message.sender === 'user' ? 'ml-auto' : ''}`}>
                     {message.sender === 'ai' && (
-                      <div className="w-8 h-8 rounded-full bg-primary-600 dark:bg-primary-700 flex items-center justify-center mr-3 flex-shrink-0 mt-1">
+                      <div className="w-8 h-8 rounded-full bg-primary-500 dark:bg-primary-600 flex items-center justify-center mr-2.5 flex-shrink-0 mt-1">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
                           <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
                           <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
@@ -736,16 +785,16 @@ export default function Chat() {
                     )}
                     
                     <div
-                      className={`px-4 py-3 rounded-2xl ${
+                      className={`px-4 py-2.5 rounded-xl ${
                         message.sender === 'user'
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 shadow-sm'
+                          ? 'bg-primary-500 text-white'
+                          : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 shadow-sm'
                       }`}
                     >
                       {message.sender === 'user' ? (
-                        <div className="whitespace-pre-wrap break-words">{message.text}</div>
+                        <div className="whitespace-pre-wrap break-words" style={{fontSize: 'var(--font-size-msg)'}}>{message.text}</div>
                       ) : message.text ? (
-                        <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap">
+                        <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap" style={{fontSize: 'var(--font-size-msg)'}}>
                           <MarkdownRenderer content={message.text} darkMode={theme === 'dark'} />
                         </div>
                       ) : isLoading && (
@@ -773,7 +822,7 @@ export default function Chat() {
         </div>
         
         {/* 输入区域 */}
-        <div className="bg-white border-t border-gray-200 p-4">
+        <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 bg-opacity-90 dark:bg-opacity-90 backdrop-blur-sm">
           <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
             <div className="relative">
               <input
@@ -782,16 +831,16 @@ export default function Chat() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="输入消息，按回车发送..."
-                className="w-full pl-4 pr-12 py-3 bg-gray-100 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                className="w-full pl-4 pr-12 py-2.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:text-white dark:placeholder-gray-400"
                 disabled={isLoading}
               />
               <button
                 type="submit"
                 disabled={isLoading || !input.trim()}
-                className={`absolute right-3 top-1/2 transform -translate-y-1/2 rounded-full p-1.5 transition-all duration-300 ${
+                className={`absolute right-2.5 top-1/2 transform -translate-y-1/2 rounded-full p-1 transition-all ${
                   isLoading || !input.trim()
-                    ? 'text-gray-400 cursor-not-allowed'
-                    : 'text-primary-600 hover:bg-primary-50'
+                    ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                    : 'text-primary-500 dark:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-600'
                 }`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -799,7 +848,7 @@ export default function Chat() {
                 </svg>
               </button>
             </div>
-            <div className="text-xs text-gray-500 mt-2 text-center">
+            <div className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 text-center opacity-70">
               星火AI仅用于辅助创作，请勿过度依赖
             </div>
           </form>
@@ -808,52 +857,59 @@ export default function Chat() {
       
       {/* 设置面板 */}
       {showSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-md p-5 relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={toggleSettings}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+              className="absolute top-3 right-3 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
             
-            <h2 className="text-lg font-bold mb-4">设置</h2>
+            <h2 className="text-lg font-bold mb-4 dark:text-white">设置</h2>
             
-            <div className="space-y-6">
+            <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   主题
                 </label>
-                <select className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
-                  <option>亮色</option>
-                  <option>暗色</option>
-                  <option>系统</option>
+                <select 
+                  value={theme}
+                  onChange={(e) => toggleTheme(e.target.value)}
+                  className="block w-full px-3 py-2 bg-white dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="light">亮色</option>
+                  <option value="dark">暗色</option>
                 </select>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   字体大小
                 </label>
-                <select className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500">
-                  <option>小</option>
-                  <option>中</option>
-                  <option>大</option>
+                <select 
+                  value={fontSize}
+                  onChange={(e) => changeFontSize(e.target.value)}
+                  className="block w-full px-3 py-2 bg-white dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="small">小</option>
+                  <option value="medium">中</option>
+                  <option value="large">大</option>
                 </select>
               </div>
               
               {/* 自定义提示词设置 */}
               <div className="border-t border-gray-200 pt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   自定义提示词
                 </label>
                 <div className="relative">
                   <textarea
                     value={systemPrompt}
                     onChange={(e) => setSystemPrompt(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 min-h-[100px]"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 min-h-[100px]"
                     placeholder="输入自定义提示词，定制AI助手的行为和角色..."
                   />
                   
@@ -878,37 +934,40 @@ export default function Chat() {
                   
                   {/* 预设列表 */}
                   {showPromptPresets && (
-                    <div className="absolute mt-1 w-full bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                    <div className="absolute mt-1 w-full bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
                       <ul className="max-h-60 overflow-auto py-1">
                         {promptPresets.map(preset => (
                           <li 
                             key={preset.id}
                             onClick={() => applyPromptPreset(preset)}
-                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                            className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer dark:text-white"
                           >
                             <div className="font-medium">{preset.name}</div>
-                            <div className="text-xs text-gray-500 truncate">{preset.prompt.substring(0, 60)}...</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{preset.prompt.substring(0, 60)}...</div>
                           </li>
                         ))}
                       </ul>
                     </div>
                   )}
                 </div>
-                <p className="mt-2 text-xs text-gray-500">
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                   提示词会影响AI助手的行为和回答风格，但不会被显示在对话中
                 </p>
               </div>
               
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">清除所有对话</span>
-                <button className="px-3 py-1 bg-red-100 text-red-600 text-sm rounded-md hover:bg-red-200 transition-colors">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">清除所有对话</span>
+                <button 
+                  onClick={clearAllConversations}
+                  className="px-3 py-1 bg-red-100 text-red-600 text-sm rounded-md hover:bg-red-200 transition-colors"
+                >
                   清除
                 </button>
               </div>
               
               <div className="pt-4 border-t border-gray-200">
                 <button 
-                  onClick={toggleSettings}
+                  onClick={applySettings}
                   className="w-full py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
                 >
                   保存设置
@@ -948,6 +1007,30 @@ export default function Chat() {
           color-scheme: dark;
         }
         
+        /* 默认字体大小 */
+        :root {
+          --font-size-base: 1rem;
+          --font-size-msg: 1rem;
+        }
+        
+        /* 字体大小设置 */
+        .text-size-small {
+          font-size: var(--font-size-base);
+        }
+        
+        .text-size-medium {
+          font-size: var(--font-size-base);
+        }
+        
+        .text-size-large {
+          font-size: var(--font-size-base);
+        }
+        
+        /* 设置字体大小对话气泡内容 */
+        .prose {
+          font-size: var(--font-size-msg);
+        }
+        
         /* 代码样式 */
         pre {
           border-radius: 0.375rem;
@@ -965,6 +1048,29 @@ export default function Chat() {
         /* 暗色模式下的代码块样式 */
         .dark pre {
           background-color: #1e1e1e;
+        }
+        
+        /* 设置面板暗色模式 */
+        .dark .bg-white {
+          background-color: #1e1e1e;
+        }
+        
+        .dark .text-gray-700 {
+          color: #e5e5e5;
+        }
+        
+        .dark .border-gray-200 {
+          border-color: #4a4a4a;
+        }
+        
+        /* 底部输入区样式 */
+        .bg-opacity-90 {
+          --tw-bg-opacity: 0.9;
+        }
+        
+        .backdrop-blur-sm {
+          backdrop-filter: blur(4px);
+          -webkit-backdrop-filter: blur(4px);
         }
       `}</style>
     </div>
