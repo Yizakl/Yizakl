@@ -220,40 +220,54 @@ export default async function handler(req, res) {
       const originalContent = content;
       
       try {
-        // 尝试检测并移除JSON数据
-        content = content.replace(/\[\s*\{\s*".*?"\s*:\s*.*?\}\s*\]/g, '');
-        content = content.replace(/\[\s*\{\s*"index".*?\}\s*\]/g, '');
+        // 检查是否在代码块内
+        const lines = content.split('\n');
+        let inCodeBlock = false;
+        const cleanedLines = [];
         
-        // 针对URL列表的特殊处理
-        content = content.replace(/\[\s*\{"index".*?"url".*?"title".*?\}\s*\]\s*\[\s*\{"index".*?"url".*?"title".*?\}\s*\]/g, '');
-        
-        // 去除可能的URL列表
-        content = content.replace(/https?:\/\/\S+/g, '');
-        
-        // 检测并移除重复的段落和句子，但保留换行
-        let paragraphs = content.split('\n\n');
-        let cleanedParagraphs = [];
-        let seenParagraphs = new Set();
-        
-        for (const paragraph of paragraphs) {
-          const trimmed = paragraph.trim();
-          if (!trimmed) continue;
+        for (const line of lines) {
+          // 检测代码块边界
+          if (line.trim().startsWith('```')) {
+            inCodeBlock = !inCodeBlock;
+            cleanedLines.push(line);
+            continue;
+          }
           
-          // 检查是否是重复段落
-          if (!seenParagraphs.has(trimmed)) {
-            seenParagraphs.add(trimmed);
-            cleanedParagraphs.push(trimmed);
+          // 在代码块内，保留原始内容
+          if (inCodeBlock) {
+            cleanedLines.push(line);
+            continue;
+          }
+          
+          // 处理非代码块内容
+          let cleanedLine = line;
+          
+          // 移除JSON数据
+          cleanedLine = cleanedLine.replace(/\[\s*\{\s*".*?"\s*:\s*.*?\}\s*\]/g, '');
+          cleanedLine = cleanedLine.replace(/\[\s*\{\s*"index".*?\}\s*\]/g, '');
+          
+          // 移除KoaSayi相关内容
+          if (cleanedLine.includes('KoaSayi')) {
+            cleanedLine = cleanedLine.replace(/KoaSayi.*?哔哩哔哩视频/g, '');
+            cleanedLine = cleanedLine.replace(/KoaSayi.*?二次元社区/g, '');
+            cleanedLine = cleanedLine.replace(/KoaSayi.*?个人主页/g, '');
+            cleanedLine = cleanedLine.replace(/KoaSayi.*?个人中心/g, '');
+          }
+          
+          // 只有当行为空白或有内容时才添加，保留空行以维持段落结构
+          if (cleanedLine.trim() || cleanedLine === '') {
+            cleanedLines.push(cleanedLine);
           }
         }
         
-        // 合并清理后的段落，保留段落间的换行
-        content = cleanedParagraphs.join('\n\n');
+        // 重新组合内容，保留原始换行
+        content = cleanedLines.join('\n');
         
-        // 格式化代码块
+        // 检测并格式化可能的代码块
         content = formatCodeBlocks(content);
         
         // 如果清理过度导致内容为空，返回原始内容
-        if (!content) {
+        if (!content.trim()) {
           return originalContent;
         }
         
@@ -277,45 +291,74 @@ export default async function handler(req, res) {
       // 检测未格式化的可能代码块（缩进的多行内容）
       const lines = content.split('\n');
       let inIndentedBlock = false;
+      let indentLevel = 0;
       let indentedBlock = [];
       let result = [];
       
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
+        const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
         
-        // 检测缩进行（可能是代码）
-        if (line.startsWith('    ') && !line.trim().startsWith('•') && !line.trim().startsWith('-')) {
+        // 如果是空行，保留它
+        if (line.trim() === '') {
           if (!inIndentedBlock) {
-            inIndentedBlock = true;
-            indentedBlock = [];
+            result.push(line);
+          } else {
+            indentedBlock.push(line);
           }
-          indentedBlock.push(line.substring(4));
-        } else {
-          // 如果已经在缩进块中且当前行不是缩进的，则结束缩进块并格式化为代码块
-          if (inIndentedBlock) {
+          continue;
+        }
+        
+        // 检测缩进级别
+        const currentIndent = line.search(/\S|$/);
+        const nextIndent = nextLine.trim() ? nextLine.search(/\S|$/) : 0;
+        
+        // 检测可能的代码块开始
+        if (!inIndentedBlock && 
+            currentIndent >= 4 && 
+            !line.trim().startsWith('- ') && 
+            !line.trim().startsWith('* ') && 
+            !line.trim().startsWith('> ') &&
+            !line.includes('```')) {
+          inIndentedBlock = true;
+          indentLevel = currentIndent;
+          indentedBlock = [line.substring(indentLevel)];
+          continue;
+        }
+        
+        // 检测代码块结束
+        if (inIndentedBlock) {
+          if (currentIndent < indentLevel || line.trim().startsWith('```') || line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
             inIndentedBlock = false;
-            if (indentedBlock.length > 1) {
-              // 多行缩进内容，可能是代码块
+            
+            // 如果代码块足够长，格式化为代码块
+            if (indentedBlock.length >= 2 && indentedBlock.some(l => l.trim().length > 0)) {
               result.push('```');
               result.push(...indentedBlock);
               result.push('```');
             } else {
-              // 单行缩进，可能只是普通文本
-              result.push(...indentedBlock.map(l => '    ' + l));
+              // 太短的缩进，可能不是代码块
+              result.push(...indentedBlock.map(l => ' '.repeat(indentLevel) + l));
             }
+            
+            result.push(line);
+          } else {
+            // 继续添加到代码块
+            indentedBlock.push(line.substring(indentLevel));
           }
+        } else {
           result.push(line);
         }
       }
       
-      // 如果文件末尾还有未处理的缩进块
+      // 如果文件结束时还有未处理的代码块
       if (inIndentedBlock) {
-        if (indentedBlock.length > 1) {
+        if (indentedBlock.length >= 2 && indentedBlock.some(l => l.trim().length > 0)) {
           result.push('```');
           result.push(...indentedBlock);
           result.push('```');
         } else {
-          result.push(...indentedBlock.map(l => '    ' + l));
+          result.push(...indentedBlock.map(l => ' '.repeat(indentLevel) + l));
         }
       }
       

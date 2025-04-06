@@ -203,35 +203,8 @@ export default function Chat() {
   const cleanMessageText = (text) => {
     if (!text) return '';
     
-    // 检测是否是KoaSayi相关的特殊响应格式
-    if (text.includes('KoaSayi') && text.includes('index') && text.includes('url')) {
-      // 如果是包含URL列表的响应，进行特殊处理
-      const lines = text.split('\n');
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes('[{"index":') || lines[i].includes('KoaSayi')) {
-          lines[i] = '';
-        }
-      }
-      text = lines.filter(line => line.trim()).join('\n');
-    }
-    
-    // 去除JSON数据
-    let cleaned = text;
-    
-    // 检测是否为完整的JSON格式并移除
-    if (/^\s*[\[\{]/.test(cleaned) && /[\]\}]\s*$/.test(cleaned)) {
-      try {
-        JSON.parse(cleaned);
-        // 如果能成功解析为JSON，则返回空字符串
-        return '';
-      } catch (e) {
-        // 不是有效JSON，继续处理
-      }
-    }
-    
-    // 移除各种JSON片段格式，但保留代码块
-    // 检查是否在代码块内
-    const lines = cleaned.split('\n');
+    // 检测是否在代码块内
+    const lines = text.split('\n');
     let inCodeBlock = false;
     const cleanedLines = [];
     
@@ -251,26 +224,29 @@ export default function Chat() {
       
       // 如果不在代码块内，移除JSON和其他不需要的内容
       let cleanedLine = line;
-      cleanedLine = cleanedLine.replace(/\[\s*\{\s*".*?"\s*:\s*.*?\}\s*\]/g, '');
-      cleanedLine = cleanedLine.replace(/\[\s*\{\s*"index".*?\}\s*\]/g, '');
       
-      // 移除URL地址，但保留代码示例中的URL
-      if (!cleanedLine.includes('```') && !cleanedLine.includes('`')) {
+      // 检测是否是KoaSayi相关的特殊响应格式
+      if (cleanedLine.includes('KoaSayi') || cleanedLine.includes('[{"index":')) {
+        cleanedLine = cleanedLine.replace(/\[\s*\{\s*".*?"\s*:\s*.*?\}\s*\]/g, '');
+        cleanedLine = cleanedLine.replace(/\[\s*\{\s*"index".*?\}\s*\]/g, '');
+        cleanedLine = cleanedLine.replace(/KoaSayi.*?哔哩哔哩视频/g, '');
+        cleanedLine = cleanedLine.replace(/KoaSayi.*?二次元社区/g, '');
+        cleanedLine = cleanedLine.replace(/KoaSayi.*?个人主页/g, '');
+        cleanedLine = cleanedLine.replace(/KoaSayi.*?个人中心/g, '');
+      }
+      
+      // 移除各种JSON片段，但保留可能的URL示例（在代码示例中）
+      if (!cleanedLine.includes('`')) {
         cleanedLine = cleanedLine.replace(/https?:\/\/\S+/g, '');
       }
       
-      cleanedLine = cleanedLine.replace(/KoaSayi.*?哔哩哔哩视频/g, '');
-      cleanedLine = cleanedLine.replace(/KoaSayi.*?二次元社区/g, '');
-      cleanedLine = cleanedLine.replace(/KoaSayi.*?个人主页/g, '');
-      cleanedLine = cleanedLine.replace(/KoaSayi.*?个人中心/g, '');
-      
       // 只有当清理后的行不为空才添加
-      if (cleanedLine.trim()) {
+      if (cleanedLine.trim() || cleanedLine === '') {  // 保留空行以维持段落结构
         cleanedLines.push(cleanedLine);
       }
     }
     
-    // 保留换行，重新组合内容
+    // 保留原始换行，重新组合内容
     return cleanedLines.join('\n');
   };
   
@@ -358,8 +334,9 @@ export default function Chat() {
               const newMessages = [...prev];
               const lastMessage = newMessages[newMessages.length - 1];
               if (lastMessage && lastMessage.sender === 'ai') {
-                // 使用清理函数处理文本
-                lastMessage.text += cleanMessageText(data.text);
+                // 使用清理函数处理文本，添加而不是覆盖
+                const cleanedText = cleanMessageText(data.text);
+                lastMessage.text += cleanedText;
               }
               return newMessages;
             });
@@ -768,7 +745,7 @@ export default function Chat() {
                       {message.sender === 'user' ? (
                         <div className="whitespace-pre-wrap break-words">{message.text}</div>
                       ) : message.text ? (
-                        <div className="prose dark:prose-invert max-w-none">
+                        <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap">
                           <MarkdownRenderer content={message.text} darkMode={theme === 'dark'} />
                         </div>
                       ) : isLoading && (
