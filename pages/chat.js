@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import Head from 'next/head';
+import MarkdownRenderer from '../components/MarkdownRenderer';
 
 export default function Chat() {
   // 状态定义
@@ -228,23 +229,49 @@ export default function Chat() {
       }
     }
     
-    // 移除各种JSON片段格式
-    cleaned = cleaned.replace(/\[\s*\{\s*".*?"\s*:\s*.*?\}\s*\]/g, '');
-    cleaned = cleaned.replace(/\[\s*\{\s*"index".*?\}\s*\]/g, '');
+    // 移除各种JSON片段格式，但保留代码块
+    // 检查是否在代码块内
+    const lines = cleaned.split('\n');
+    let inCodeBlock = false;
+    const cleanedLines = [];
     
-    // 移除URL地址
-    cleaned = cleaned.replace(/https?:\/\/\S+/g, '');
+    for (const line of lines) {
+      // 检测代码块的开始和结束
+      if (line.trim().startsWith('```')) {
+        inCodeBlock = !inCodeBlock;
+        cleanedLines.push(line);
+        continue;
+      }
+      
+      // 如果在代码块内，保留原始内容
+      if (inCodeBlock) {
+        cleanedLines.push(line);
+        continue;
+      }
+      
+      // 如果不在代码块内，移除JSON和其他不需要的内容
+      let cleanedLine = line;
+      cleanedLine = cleanedLine.replace(/\[\s*\{\s*".*?"\s*:\s*.*?\}\s*\]/g, '');
+      cleanedLine = cleanedLine.replace(/\[\s*\{\s*"index".*?\}\s*\]/g, '');
+      
+      // 移除URL地址，但保留代码示例中的URL
+      if (!cleanedLine.includes('```') && !cleanedLine.includes('`')) {
+        cleanedLine = cleanedLine.replace(/https?:\/\/\S+/g, '');
+      }
+      
+      cleanedLine = cleanedLine.replace(/KoaSayi.*?哔哩哔哩视频/g, '');
+      cleanedLine = cleanedLine.replace(/KoaSayi.*?二次元社区/g, '');
+      cleanedLine = cleanedLine.replace(/KoaSayi.*?个人主页/g, '');
+      cleanedLine = cleanedLine.replace(/KoaSayi.*?个人中心/g, '');
+      
+      // 只有当清理后的行不为空才添加
+      if (cleanedLine.trim()) {
+        cleanedLines.push(cleanedLine);
+      }
+    }
     
-    // 移除可能的KoaSayi引用格式（基于示例）
-    cleaned = cleaned.replace(/KoaSayi.*?哔哩哔哩视频/g, '');
-    cleaned = cleaned.replace(/KoaSayi.*?二次元社区/g, '');
-    cleaned = cleaned.replace(/KoaSayi.*?个人主页/g, '');
-    cleaned = cleaned.replace(/KoaSayi.*?个人中心/g, '');
-    
-    // 移除数字索引前缀 (例如 "1. ", "2. ")
-    cleaned = cleaned.replace(/^\d+\.\s+/gm, '');
-    
-    return cleaned;
+    // 保留换行，重新组合内容
+    return cleanedLines.join('\n');
   };
   
   // 在处理每条消息时使用清理函数
@@ -364,14 +391,42 @@ export default function Chat() {
                   text = cleanedLines.join('\n');
                 }
                 
-                // 移除所有JSON格式数据
-                text = text.replace(/\[\s*\{.*?\}\s*\]/g, '');
-                text = text.replace(/\[(\{"index".*?\})+\]/g, '');
+                // 移除所有JSON格式数据，但保留代码块内容
+                let inCodeBlock = false;
+                const finalLines = [];
                 
-                // 规范化空白字符和去除首尾空白
-                text = text.replace(/\s+/g, ' ');
-                text = text.trim();
+                for (const line of text.split('\n')) {
+                  // 检测代码块边界
+                  if (line.trim().startsWith('```')) {
+                    inCodeBlock = !inCodeBlock;
+                    finalLines.push(line);
+                    continue;
+                  }
+                  
+                  // 在代码块内，保留原始内容
+                  if (inCodeBlock) {
+                    finalLines.push(line);
+                    continue;
+                  }
+                  
+                  // 不在代码块内，清理JSON内容
+                  let cleanedLine = line;
+                  if (cleanedLine.includes('[{') || cleanedLine.includes('}]')) {
+                    cleanedLine = cleanedLine.replace(/\[\s*\{.*?\}\s*\]/g, '');
+                  }
+                  
+                  if (cleanedLine.trim()) {
+                    finalLines.push(cleanedLine);
+                  }
+                }
                 
+                // 重新组合内容，保留换行
+                text = finalLines.join('\n');
+                
+                // 检测和格式化可能的代码块
+                text = formatMarkdown(text);
+                
+                // 更新消息
                 lastMessage.text = text;
               }
               return newMessages;
@@ -474,8 +529,114 @@ export default function Chat() {
     setCurrentConversation(null);
   };
 
+  // 格式化Markdown，识别和适当格式化代码块
+  const formatMarkdown = (text) => {
+    // 已经格式化的代码块
+    const codeBlockRegex = /```(\w+)?\n([\s\S]+?)\n```/g;
+    
+    // 找到所有已格式化的代码块，确保它们有正确的语言标记
+    text = text.replace(codeBlockRegex, (match, language, code) => {
+      // 如果没有语言标记，尝试检测语言
+      if (!language) {
+        // 简单检测一些常见语言
+        if (code.includes('function') || code.includes('const ') || code.includes('var ') || code.includes('let ')) {
+          language = 'javascript';
+        } else if (code.includes('import ') && code.includes('from ')) {
+          language = 'javascript';
+        } else if (code.includes('def ') || code.includes('import ') || code.includes('class ')) {
+          language = 'python';
+        } else if (code.includes('#include') || code.includes('int main')) {
+          language = 'c';
+        } else if (code.includes('<?php')) {
+          language = 'php';
+        } else if (code.includes('<html') || code.includes('<!DOCTYPE')) {
+          language = 'html';
+        } else if (code.includes('SELECT ') || code.includes('FROM ') || code.includes('WHERE ')) {
+          language = 'sql';
+        }
+      }
+      
+      return `\`\`\`${language || ''}\n${code.trim()}\n\`\`\``;
+    });
+    
+    // 检测可能未格式化的代码块（多行连续缩进）
+    const lines = text.split('\n');
+    let inUnformattedBlock = false;
+    let indentLevel = 0;
+    let codeLines = [];
+    let result = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trimRight();
+      const nextLine = i < lines.length - 1 ? lines[i + 1].trimRight() : '';
+      
+      // 如果是空行，添加并继续
+      if (line.trim() === '') {
+        if (!inUnformattedBlock) {
+          result.push(line);
+        } else {
+          codeLines.push(line);
+        }
+        continue;
+      }
+      
+      // 检测缩进级别
+      const currentIndent = line.search(/\S|$/);
+      const nextIndent = nextLine.trim() ? nextLine.search(/\S|$/) : 0;
+      
+      // 检测可能的代码块开始
+      if (!inUnformattedBlock && 
+          currentIndent >= 4 && 
+          !line.trim().startsWith('- ') && 
+          !line.trim().startsWith('* ') && 
+          !line.trim().startsWith('> ')) {
+        inUnformattedBlock = true;
+        indentLevel = currentIndent;
+        codeLines = [line.substring(indentLevel)];
+        continue;
+      }
+      
+      // 检测代码块结束
+      if (inUnformattedBlock) {
+        if (currentIndent < indentLevel || line.trim().startsWith('```')) {
+          inUnformattedBlock = false;
+          
+          // 如果代码块足够长，格式化为代码块
+          if (codeLines.length >= 2) {
+            result.push('```');
+            result.push(...codeLines);
+            result.push('```');
+          } else {
+            // 太短的缩进，可能不是代码块
+            result.push(...codeLines.map(l => ' '.repeat(indentLevel) + l));
+          }
+          
+          result.push(line);
+        } else {
+          // 继续添加到代码块
+          codeLines.push(line.substring(indentLevel));
+        }
+      } else {
+        result.push(line);
+      }
+    }
+    
+    // 如果文件结束时还有未处理的代码块
+    if (inUnformattedBlock) {
+      if (codeLines.length >= 2) {
+        result.push('```');
+        result.push(...codeLines);
+        result.push('```');
+      } else {
+        result.push(...codeLines.map(l => ' '.repeat(indentLevel) + l));
+      }
+    }
+    
+    return result.join('\n');
+  };
+
   return (
-    <div className="flex h-screen bg-gray-100 text-gray-800">
+    <div className={`flex h-screen ${theme === 'dark' ? 'dark' : ''}`}>
       <Head>
         <title>星火AI助手 | 智能对话</title>
         <meta name="description" content="使用讯飞星火大模型进行智能对话" />
@@ -536,7 +697,7 @@ export default function Chat() {
       </div>
       
       {/* 主内容区 */}
-      <div className="flex-1 flex flex-col h-screen">
+      <div className="flex-1 flex flex-col h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
         {/* 顶部栏 */}
         <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center">
           <button 
@@ -568,46 +729,16 @@ export default function Chat() {
         </div>
         
         {/* 对话区域 */}
-        <div className="flex-1 overflow-y-auto bg-gray-50 p-4">
+        <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 animate-fadeIn">
-              <div className="w-20 h-20 rounded-full mb-6 bg-primary-50 flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 animate-fadeIn">
+              <div className="w-20 h-20 rounded-full mb-6 bg-primary-50 dark:bg-gray-800 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-primary-500 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-medium mb-2">星火AI助手</h2>
-              <p className="text-sm text-center max-w-md mb-8">你可以询问任何问题，AI助手将为你提供专业解答</p>
-              
-              <div className="grid grid-cols-2 gap-4 max-w-2xl w-full px-4">
-                <div className="col-span-2">
-                  <h3 className="text-gray-500 text-sm font-medium mb-2">示例问题</h3>
-                </div>
-                <button 
-                  onClick={() => setInput("你能介绍一下自己吗？你有什么功能？")}
-                  className="p-3 bg-white rounded-xl border border-gray-200 text-gray-700 text-sm hover:bg-gray-50 text-left transition-colors"
-                >
-                  "你能介绍一下自己吗？你有什么功能？"
-                </button>
-                <button 
-                  onClick={() => setInput("写一篇关于人工智能在医疗领域应用的文章")}
-                  className="p-3 bg-white rounded-xl border border-gray-200 text-gray-700 text-sm hover:bg-gray-50 text-left transition-colors"
-                >
-                  "写一篇关于人工智能在医疗领域应用的文章"
-                </button>
-                <button 
-                  onClick={() => setInput("React Hooks的优势是什么？给我一些使用示例")}
-                  className="p-3 bg-white rounded-xl border border-gray-200 text-gray-700 text-sm hover:bg-gray-50 text-left transition-colors"
-                >
-                  "React Hooks的优势是什么？给我一些使用示例"
-                </button>
-                <button 
-                  onClick={() => setInput("如何优化Next.js应用的性能？")}
-                  className="p-3 bg-white rounded-xl border border-gray-200 text-gray-700 text-sm hover:bg-gray-50 text-left transition-colors"
-                >
-                  "如何优化Next.js应用的性能？"
-                </button>
-              </div>
+              <h2 className="text-xl font-medium mb-2 text-gray-600 dark:text-gray-300">星火AI助手</h2>
+              <p className="text-sm text-center max-w-md mb-4">你可以询问任何问题，AI助手将为你提供专业解答</p>
             </div>
           ) : (
             <div className="max-w-3xl mx-auto space-y-6">
@@ -619,7 +750,7 @@ export default function Chat() {
                 >
                   <div className={`flex max-w-[90%] ${message.sender === 'user' ? 'ml-auto' : ''}`}>
                     {message.sender === 'ai' && (
-                      <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center mr-3 flex-shrink-0 mt-1">
+                      <div className="w-8 h-8 rounded-full bg-primary-600 dark:bg-primary-700 flex items-center justify-center mr-3 flex-shrink-0 mt-1">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
                           <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
                           <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
@@ -631,21 +762,27 @@ export default function Chat() {
                       className={`px-4 py-3 rounded-2xl ${
                         message.sender === 'user'
                           ? 'bg-primary-600 text-white'
-                          : 'bg-white text-gray-800 border border-gray-200 shadow-sm'
+                          : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 shadow-sm'
                       }`}
                     >
-                      {message.text || (message.sender === 'ai' && isLoading && (
+                      {message.sender === 'user' ? (
+                        <div className="whitespace-pre-wrap break-words">{message.text}</div>
+                      ) : message.text ? (
+                        <div className="prose dark:prose-invert max-w-none">
+                          <MarkdownRenderer content={message.text} darkMode={theme === 'dark'} />
+                        </div>
+                      ) : isLoading && (
                         <div className="flex space-x-2 items-center h-6">
                           <div className="w-2 h-2 rounded-full bg-primary-400 animate-pulse"></div>
                           <div className="w-2 h-2 rounded-full bg-primary-500 animate-pulse" style={{animationDelay: '0.2s'}}></div>
                           <div className="w-2 h-2 rounded-full bg-primary-600 animate-pulse" style={{animationDelay: '0.4s'}}></div>
                         </div>
-                      ))}
+                      )}
                     </div>
                     
                     {message.sender === 'user' && (
-                      <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center ml-3 flex-shrink-0 mt-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
+                      <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center ml-3 flex-shrink-0 mt-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                         </svg>
                       </div>
@@ -828,6 +965,29 @@ export default function Chat() {
         
         .animate-messageIn {
           animation: messageIn 0.3s ease-out forwards;
+        }
+        
+        .dark {
+          color-scheme: dark;
+        }
+        
+        /* 代码样式 */
+        pre {
+          border-radius: 0.375rem;
+          padding: 1rem;
+          overflow-x: auto;
+          margin: 1rem 0;
+        }
+        
+        code {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          font-size: 0.875rem;
+          line-height: 1.25rem;
+        }
+        
+        /* 暗色模式下的代码块样式 */
+        .dark pre {
+          background-color: #1e1e1e;
         }
       `}</style>
     </div>

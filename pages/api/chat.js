@@ -230,7 +230,7 @@ export default async function handler(req, res) {
         // 去除可能的URL列表
         content = content.replace(/https?:\/\/\S+/g, '');
         
-        // 检测并移除重复的段落和句子
+        // 检测并移除重复的段落和句子，但保留换行
         let paragraphs = content.split('\n\n');
         let cleanedParagraphs = [];
         let seenParagraphs = new Set();
@@ -246,50 +246,11 @@ export default async function handler(req, res) {
           }
         }
         
-        // 合并清理后的段落
+        // 合并清理后的段落，保留段落间的换行
         content = cleanedParagraphs.join('\n\n');
         
-        // 再次检查句子级别的重复
-        let sentences = content.split(/(?<=\.)\s+/);
-        let uniqueSentences = [];
-        let seenSentences = new Set();
-        
-        for (const sentence of sentences) {
-          const trimmed = sentence.trim();
-          if (!trimmed) continue;
-          
-          // 如果句子中包含数字编号（如 "1."），检查是否已有类似内容
-          const match = trimmed.match(/^\d+\.\s*(.*)/);
-          if (match) {
-            const sentenceContent = match[1];
-            let isDuplicate = false;
-            
-            // 检查是否与其他编号内容重复
-            for (const seen of seenSentences) {
-              if (seen.includes(sentenceContent) || sentenceContent.includes(seen)) {
-                isDuplicate = true;
-                break;
-              }
-            }
-            
-            if (!isDuplicate) {
-              seenSentences.add(sentenceContent);
-              uniqueSentences.push(trimmed);
-            }
-          } else if (!seenSentences.has(trimmed)) {
-            // 普通句子检查
-            seenSentences.add(trimmed);
-            uniqueSentences.push(trimmed);
-          }
-        }
-        
-        // 重新组合内容
-        content = uniqueSentences.join(' ');
-        
-        // 修复可能的格式问题
-        content = content.replace(/\.\s+\./g, '.');
-        content = content.replace(/\s+/g, ' ');
-        content = content.trim();
+        // 格式化代码块
+        content = formatCodeBlocks(content);
         
         // 如果清理过度导致内容为空，返回原始内容
         if (!content) {
@@ -301,6 +262,64 @@ export default async function handler(req, res) {
         console.error('清理内容时出错:', error);
         return originalContent;
       }
+    }
+    
+    // 格式化代码块
+    function formatCodeBlocks(content) {
+      // 检测可能的代码块并适当格式化
+      const codeBlockRegex = /```(\w+)?\n([\s\S]+?)\n```/g;
+      
+      // 替换所有匹配到的代码块，确保正确的格式
+      content = content.replace(codeBlockRegex, (match, language, code) => {
+        return `\n\`\`\`${language || ''}\n${code.trim()}\n\`\`\`\n`;
+      });
+      
+      // 检测未格式化的可能代码块（缩进的多行内容）
+      const lines = content.split('\n');
+      let inIndentedBlock = false;
+      let indentedBlock = [];
+      let result = [];
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        
+        // 检测缩进行（可能是代码）
+        if (line.startsWith('    ') && !line.trim().startsWith('•') && !line.trim().startsWith('-')) {
+          if (!inIndentedBlock) {
+            inIndentedBlock = true;
+            indentedBlock = [];
+          }
+          indentedBlock.push(line.substring(4));
+        } else {
+          // 如果已经在缩进块中且当前行不是缩进的，则结束缩进块并格式化为代码块
+          if (inIndentedBlock) {
+            inIndentedBlock = false;
+            if (indentedBlock.length > 1) {
+              // 多行缩进内容，可能是代码块
+              result.push('```');
+              result.push(...indentedBlock);
+              result.push('```');
+            } else {
+              // 单行缩进，可能只是普通文本
+              result.push(...indentedBlock.map(l => '    ' + l));
+            }
+          }
+          result.push(line);
+        }
+      }
+      
+      // 如果文件末尾还有未处理的缩进块
+      if (inIndentedBlock) {
+        if (indentedBlock.length > 1) {
+          result.push('```');
+          result.push(...indentedBlock);
+          result.push('```');
+        } else {
+          result.push(...indentedBlock.map(l => '    ' + l));
+        }
+      }
+      
+      return result.join('\n');
     }
     
     // 错误处理

@@ -33,35 +33,36 @@ module.exports = {
           900: '#111827',
         },
       },
-      typography: {
+      typography: (theme) => ({
         DEFAULT: {
           css: {
             a: {
-              color: '#383838',
+              color: theme('colors.primary.700'),
               '&:hover': {
-                color: '#111827',
+                color: theme('colors.primary.800'),
               },
             },
             h1: {
-              color: '#111827',
+              color: theme('colors.gray.900'),
               fontWeight: '700',
             },
             h2: {
-              color: '#111827',
+              color: theme('colors.gray.900'),
               fontWeight: '600',
             },
             h3: {
-              color: '#111827',
+              color: theme('colors.gray.900'),
               fontWeight: '600',
             },
             code: {
-              color: '#383838',
-              backgroundColor: '#f3f4f6',
+              color: theme('colors.gray.800'),
+              backgroundColor: theme('colors.gray.100'),
               paddingLeft: '4px',
               paddingRight: '4px',
               paddingTop: '2px',
               paddingBottom: '2px',
               borderRadius: '0.25rem',
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
             },
             'code::before': {
               content: 'none',
@@ -69,9 +70,43 @@ module.exports = {
             'code::after': {
               content: 'none',
             },
+            pre: {
+              backgroundColor: theme('colors.gray.800'),
+              color: theme('colors.gray.100'),
+              borderRadius: '0.375rem',
+              padding: '1rem',
+            },
           },
         },
-      },
+        dark: {
+          css: {
+            color: theme('colors.gray.300'),
+            a: {
+              color: theme('colors.primary.400'),
+              '&:hover': {
+                color: theme('colors.primary.300'),
+              },
+            },
+            h1: {
+              color: theme('colors.gray.100'),
+            },
+            h2: {
+              color: theme('colors.gray.100'),
+            },
+            h3: {
+              color: theme('colors.gray.100'),
+            },
+            code: {
+              color: theme('colors.gray.200'),
+              backgroundColor: theme('colors.gray.800'),
+            },
+            pre: {
+              backgroundColor: theme('colors.gray.900'),
+              color: theme('colors.gray.100'),
+            },
+          },
+        },
+      }),
     },
   },
   plugins: [
