@@ -767,7 +767,7 @@ export default function Chat() {
               <p className="text-sm text-center max-w-md mb-4">你可以询问任何问题，AI助手将为你提供专业解答</p>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto space-y-5">
+            <div className="max-w-3xl mx-auto space-y-4">
               {messages.map((message, index) => (
                 <div
                   key={message.id}
@@ -776,7 +776,7 @@ export default function Chat() {
                 >
                   <div className={`flex max-w-[92%] ${message.sender === 'user' ? 'ml-auto' : ''}`}>
                     {message.sender === 'ai' && (
-                      <div className="w-8 h-8 rounded-full bg-primary-500 dark:bg-primary-600 flex items-center justify-center mr-2.5 flex-shrink-0 mt-1">
+                      <div className="w-8 h-8 rounded-full bg-primary-500 dark:bg-primary-600 flex items-center justify-center mr-2.5 flex-shrink-0 mt-0.5">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
                           <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
                           <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
@@ -785,16 +785,16 @@ export default function Chat() {
                     )}
                     
                     <div
-                      className={`px-4 py-2.5 rounded-xl ${
+                      className={`px-4 py-2 rounded-xl ${
                         message.sender === 'user'
                           ? 'bg-primary-500 text-white'
                           : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 shadow-sm'
                       }`}
                     >
                       {message.sender === 'user' ? (
-                        <div className="whitespace-pre-wrap break-words" style={{fontSize: 'var(--font-size-msg)'}}>{message.text}</div>
+                        <div className="whitespace-pre-wrap break-words leading-relaxed" style={{fontSize: 'var(--font-size-msg)'}}>{message.text}</div>
                       ) : message.text ? (
-                        <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap" style={{fontSize: 'var(--font-size-msg)'}}>
+                        <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap leading-relaxed" style={{fontSize: 'var(--font-size-msg)'}}>
                           <MarkdownRenderer content={message.text} darkMode={theme === 'dark'} />
                         </div>
                       ) : isLoading && (
@@ -807,7 +807,7 @@ export default function Chat() {
                     </div>
                     
                     {message.sender === 'user' && (
-                      <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center ml-3 flex-shrink-0 mt-1">
+                      <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center ml-2.5 flex-shrink-0 mt-0.5">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                         </svg>
@@ -822,7 +822,7 @@ export default function Chat() {
         </div>
         
         {/* 输入区域 */}
-        <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 bg-opacity-90 dark:bg-opacity-90 backdrop-blur-sm">
+        <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-2.5 sm:p-3 bg-opacity-95 dark:bg-opacity-95 backdrop-blur-sm">
           <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
             <div className="relative">
               <input
@@ -831,13 +831,13 @@ export default function Chat() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="输入消息，按回车发送..."
-                className="w-full pl-4 pr-12 py-2.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:text-white dark:placeholder-gray-400"
+                className="w-full pl-3.5 pr-11 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:text-white dark:placeholder-gray-400 text-sm"
                 disabled={isLoading}
               />
               <button
                 type="submit"
                 disabled={isLoading || !input.trim()}
-                className={`absolute right-2.5 top-1/2 transform -translate-y-1/2 rounded-full p-1 transition-all ${
+                className={`absolute right-2 top-1/2 transform -translate-y-1/2 rounded-full p-1 transition-all ${
                   isLoading || !input.trim()
                     ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
                     : 'text-primary-500 dark:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-600'
@@ -848,7 +848,7 @@ export default function Chat() {
                 </svg>
               </button>
             </div>
-            <div className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 text-center opacity-70">
+            <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 text-center opacity-60">
               星火AI仅用于辅助创作，请勿过度依赖
             </div>
           </form>
@@ -1029,6 +1029,15 @@ export default function Chat() {
         /* 设置字体大小对话气泡内容 */
         .prose {
           font-size: var(--font-size-msg);
+          line-height: 1.5;
+        }
+        
+        .prose p {
+          margin: 0.5em 0;
+        }
+
+        .leading-relaxed {
+          line-height: 1.5;
         }
         
         /* 代码样式 */
@@ -1064,8 +1073,8 @@ export default function Chat() {
         }
         
         /* 底部输入区样式 */
-        .bg-opacity-90 {
-          --tw-bg-opacity: 0.9;
+        .bg-opacity-95 {
+          --tw-bg-opacity: 0.95;
         }
         
         .backdrop-blur-sm {

@@ -83,9 +83,9 @@ const MarkdownRenderer = ({ content, darkMode }) => {
             </code>
           );
         },
-        // 确保段落和换行正确渲染
+        // 减小段落间距
         p({ children }) {
-          return <p className="mb-2 whitespace-pre-wrap">{children}</p>;
+          return <p className="my-1 whitespace-pre-wrap">{children}</p>;
         },
         // 设置链接在新窗口打开
         a({ node, ...props }) {
@@ -93,28 +93,31 @@ const MarkdownRenderer = ({ content, darkMode }) => {
         },
         // 设置标题样式
         h1({ children }) {
-          return <h1 className="text-xl font-bold my-3">{children}</h1>;
+          return <h1 className="text-xl font-bold my-2">{children}</h1>;
         },
         h2({ children }) {
           return <h2 className="text-lg font-bold my-2">{children}</h2>;
         },
         h3({ children }) {
-          return <h3 className="text-md font-bold my-2">{children}</h3>;
+          return <h3 className="text-md font-bold my-1.5">{children}</h3>;
         },
         // 设置列表样式
         ul({ children }) {
-          return <ul className="list-disc ml-5 my-2">{children}</ul>;
+          return <ul className="list-disc ml-5 my-1.5">{children}</ul>;
         },
         ol({ children }) {
-          return <ol className="list-decimal ml-5 my-2">{children}</ol>;
+          return <ol className="list-decimal ml-5 my-1.5">{children}</ol>;
+        },
+        li({ children }) {
+          return <li className="my-0.5">{children}</li>;
         },
         // 设置预格式化文本样式
         pre({ children }) {
-          return <pre className="rounded-md overflow-x-auto my-4">{children}</pre>;
+          return <pre className="rounded-md overflow-x-auto my-2">{children}</pre>;
         },
         // 增加对引用块的支持
         blockquote({ children }) {
-          return <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic my-2">{children}</blockquote>;
+          return <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic my-1.5">{children}</blockquote>;
         }
       }}
     >
