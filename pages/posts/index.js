@@ -2,75 +2,22 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
 import PostCard from '../../components/PostCard';
+import { getAllPosts } from '../../lib/posts';
 
-// 模拟的博客文章数据
-const allPosts = [
-  {
-    id: 1,
-    title: '开始使用Next.js构建博客',
-    date: '2025-04-04',
-    excerpt: '本文介绍了如何使用Next.js从零开始构建一个个人博客网站...',
-    slug: 'getting-started-with-nextjs'
-  },
-  {
-    id: 2,
-    title: 'React Hooks完全指南',
-    date: '2025-04-03',
-    excerpt: '深入了解React Hooks的使用方法和最佳实践...',
-    slug: 'complete-guide-to-react-hooks'
-  },
-  {
-    id: 3,
-    title: '现代CSS技巧与窍门',
-    date: '2025-04-02',
-    excerpt: '探索现代CSS的强大功能和一些有用的技巧...',
-    slug: 'modern-css-tips-and-tricks'
-  },
-  {
-    id: 4,
-    title: '响应式网页设计基础',
-    date: '2025-04-01',
-    excerpt: '学习如何设计在各种设备上都能完美展示的网站...',
-    slug: 'responsive-web-design-basics'
-  },
-  {
-    id: 5,
-    title: 'JavaScript性能优化技巧',
-    date: '2025-03-30',
-    excerpt: '提高JavaScript应用性能的实用方法和最佳实践...',
-    slug: 'javascript-performance-tips'
-  },
-  {
-    id: 6,
-    title: 'Web安全入门指南',
-    date: '2025-03-28',
-    excerpt: '了解保护网站安全的基本原则和常见威胁...',
-    slug: 'web-security-basics'
-  },
-  {
-    id: 7,
-    title: '使用TailwindCSS构建现代UI',
-    date: '2025-03-26',
-    excerpt: '探索如何使用TailwindCSS快速创建精美的用户界面...',
-    slug: 'modern-ui-with-tailwindcss'
-  },
-  {
-    id: 8,
-    title: 'GraphQL与RESTful API比较',
-    date: '2025-03-24',
-    excerpt: '深入分析两种API架构的优缺点及适用场景...',
-    slug: 'graphql-vs-rest'
-  },
-  {
-    id: 9,
-    title: '前端测试最佳实践',
-    date: '2025-03-22',
-    excerpt: '学习如何有效地测试前端应用以确保质量...',
-    slug: 'frontend-testing-best-practices'
-  }
-];
+export async function getStaticProps() {
+  // 从文件系统获取所有文章
+  const posts = getAllPosts();
+  
+  return {
+    props: {
+      allPosts: posts
+    },
+    // 每60秒重新生成页面
+    revalidate: 60
+  };
+}
 
-export default function Posts() {
+export default function Posts({ allPosts = [] }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const postsPerPage = 3;
@@ -200,4 +147,4 @@ export default function Posts() {
       </div>
     </Layout>
   );
-} 
+}

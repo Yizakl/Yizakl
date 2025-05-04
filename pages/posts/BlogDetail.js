@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
+import Comments from '../../components/Comments';
 
 // 这个文件将作为博客详情页面的样板，稍后会将它的样式集成到[slug].js中
 export default function BlogDetail({ post = {} }) {
@@ -87,79 +88,8 @@ export default function BlogDetail({ post = {} }) {
         </div>
         
         {/* 评论部分 */}
-        <div className="card p-6 md:p-10">
-          <h3 className="text-xl font-bold mb-6">评论 (3)</h3>
-          
-          <div className="space-y-6">
-            {/* 评论表单 */}
-            <div className="mb-8">
-              <h4 className="text-lg font-semibold mb-4">发表评论</h4>
-              <div className="flex space-x-4 mb-4">
-                <div className="w-10 h-10 rounded-full bg-gray-700 flex-shrink-0"></div>
-                <div className="flex-grow">
-                  <textarea
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-200"
-                    placeholder="输入你的评论..."
-                    rows={3}
-                  ></textarea>
-                </div>
-              </div>
-              <div className="text-right">
-                <button className="btn py-2 px-6">提交评论</button>
-              </div>
-            </div>
-            
-            {/* 单个评论 */}
-            <div className="flex space-x-4">
-              <div className="w-10 h-10 rounded-full bg-gray-700 flex-shrink-0"></div>
-              <div>
-                <div className="flex items-center mb-1">
-                  <h5 className="font-semibold">张三</h5>
-                  <span className="text-gray-400 text-sm ml-2">3天前</span>
-                </div>
-                <p className="text-gray-300">
-                  非常棒的文章！我学到了很多关于Next.js的知识。
-                </p>
-                <div className="mt-2 flex space-x-4">
-                  <button className="text-sm text-gray-400 hover:text-primary-400">
-                    回复
-                  </button>
-                  <button className="text-sm text-gray-400 hover:text-primary-400 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-                    </svg>
-                    赞 (2)
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex space-x-4">
-              <div className="w-10 h-10 rounded-full bg-gray-700 flex-shrink-0"></div>
-              <div>
-                <div className="flex items-center mb-1">
-                  <h5 className="font-semibold">李四</h5>
-                  <span className="text-gray-400 text-sm ml-2">2天前</span>
-                </div>
-                <p className="text-gray-300">
-                  请问有没有更多关于API路由的介绍？
-                </p>
-                <div className="mt-2 flex space-x-4">
-                  <button className="text-sm text-gray-400 hover:text-primary-400">
-                    回复
-                  </button>
-                  <button className="text-sm text-gray-400 hover:text-primary-400 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-                    </svg>
-                    赞 (0)
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <Comments postSlug={post.slug} />
       </article>
     </Layout>
   );
-} 
+}

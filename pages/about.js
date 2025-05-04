@@ -13,44 +13,44 @@ export default function About() {
           <div className="md:col-span-2 space-y-6">
             <div className="prose prose-lg">
               <p>
-                欢迎来到我的个人博客！我是一名热爱技术和写作的开发者。
-                在这个博客中，我会分享我在编程、技术和个人成长方面的经验和见解。
+
+                在这个博客中，我会发电。
               </p>
               
-              <h2>我的技术栈</h2>
+              <h2>我的fw技术</h2>
               
               <ul className="space-y-2">
                 <li className="flex items-start">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span><strong>前端开发</strong>: React, Next.js, HTML, CSS, JavaScript, TypeScript</span>
+                  <span><strong>前端开发</strong>: 不会</span>
                 </li>
                 <li className="flex items-start">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span><strong>后端开发</strong>: Node.js, Express, MongoDB, GraphQL</span>
+                  <span><strong>后端开发</strong>: Node.js, 不会</span>
                 </li>
                 <li className="flex items-start">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span><strong>数据库</strong>: MongoDB, MySQL, PostgreSQL</span>
+                  <span><strong>数据库</strong>: 不会</span>
                 </li>
                 <li className="flex items-start">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span><strong>DevOps</strong>: Docker, AWS, CI/CD, Git</span>
+                  <span><strong>DevOps</strong>: 不会</span>
                 </li>
               </ul>
               
               <h2>我的经历</h2>
               
               <p>
-                我拥有多年的Web开发经验，专注于创建用户友好、性能优化的Web应用。
-                我喜欢学习新技术，并且热衷于将这些知识应用到实际项目中。
+                我拥有多年的大脑开发经验，专注于创建DL友好、性能优化的fvv应用。
+                我喜欢学习fw技术，并且热衷于将这些知识应用到实际项目中。
               </p>
               
               <h2>博客的目标</h2>
@@ -60,10 +60,10 @@ export default function About() {
               </p>
               
               <ul>
-                <li>分享实用的编程技巧和最佳实践</li>
+                <li>分享实用的大脑使用技巧和最佳实践</li>
                 <li>记录我的学习过程和发现</li>
-                <li>与更多志同道合的开发者交流</li>
-                <li>帮助新手开发者避免常见的陷阱</li>
+                <li>与更多志同道合的开发者发电</li>
+                <li>帮助新老手开发者掉进陷阱</li>
               </ul>
               
               <h2>联系方式</h2>
@@ -75,7 +75,7 @@ export default function About() {
             
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
               <a 
-                href="mailto:example@yourdomain.com" 
+                href="mailto:yizakl@iCloud.com" 
                 className="btn flex items-center justify-center"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -84,7 +84,7 @@ export default function About() {
                 电子邮件
               </a>
               <a 
-                href="https://github.com/yourname" 
+                href="https://github.com/yizakl" 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="btn btn-secondary flex items-center justify-center"
@@ -106,8 +106,8 @@ export default function About() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold mb-2">您的名字</h3>
-                <p className="text-gray-600 mb-4">职业头衔（例如：Web开发者）</p>
+                <h3 className="text-xl font-bold mb-2">Yizakl</h3>
+                <p className="text-gray-600 mb-4">人类 & fvv作家</p>
                 <div className="flex justify-center space-x-3">
                   <a href="#" className="text-gray-600 hover:text-primary-600">
                     <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">

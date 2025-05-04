@@ -1,9 +1,10 @@
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
 import BlogDetail from './BlogDetail';
+import { getPostBySlug, getAllPosts } from '../../lib/posts';
 
-// 模拟的博客文章数据
-const posts = [
+// 默认文章数据，用于初始化文件系统
+const defaultPosts = [
   {
     id: 1,
     title: '开始使用Next.js构建博客',
@@ -288,15 +289,53 @@ const posts = [
   }
 ];
 
-export default function Post() {
+// 获取静态路径
+export async function getStaticPaths() {
+  const posts = getAllPosts();
+  
+  // 如果没有文章，使用默认文章的slug
+  const paths = posts.length > 0 
+    ? posts.map(post => ({ params: { slug: post.slug } }))
+    : defaultPosts.map(post => ({ params: { slug: post.slug } }));
+  
+  return {
+    paths,
+    fallback: true // 允许在构建后生成新页面
+  };
+}
+
+// 获取静态属性
+export async function getStaticProps({ params }) {
+  const { slug } = params;
+  
+  // 尝试从文件系统获取文章
+  let post = getPostBySlug(slug);
+  
+  // 如果文件系统中没有找到，从默认文章中查找
+  if (!post) {
+    post = defaultPosts.find(p => p.slug === slug);
+  }
+  
+  // 如果仍然没有找到，返回404
+  if (!post) {
+    return {
+      notFound: true
+    };
+  }
+  
+  return {
+    props: {
+      post
+    },
+    revalidate: 60 // 每60秒重新生成页面
+  };
+}
+
+export default function Post({ post }) {
   const router = useRouter();
-  const { slug } = router.query;
   
-  // 查找与当前slug匹配的文章
-  const post = posts.find(post => post.slug === slug);
-  
-  // 如果文章不存在或页面仍在加载中
-  if (router.isFallback || !post) {
+  // 如果页面仍在加载中
+  if (router.isFallback) {
     return (
       <Layout>
         <div className="flex justify-center items-center py-20">
@@ -306,5 +345,16 @@ export default function Post() {
     );
   }
   
+  // 如果文章不存在
+  if (!post) {
+    return (
+      <Layout title="文章未找到" description="无法加载文章内容">
+        <div className="flex justify-center items-center py-20">
+          <h1 className="text-2xl font-bold">文章未找到</h1>
+        </div>
+      </Layout>
+    );
+  }
+  
   return <BlogDetail post={post} />;
-} 
+}

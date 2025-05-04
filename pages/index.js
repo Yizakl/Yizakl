@@ -1,33 +1,25 @@
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import PostCard from '../components/PostCard';
+import { getAllPosts } from '../lib/posts';
 
-// 模拟的博客文章数据
-const featuredPosts = [
-  {
-    id: 1,
-    title: '开始使用Next.js构建博客',
-    date: '2025-04-04',
-    excerpt: '本文介绍了如何使用Next.js从零开始构建一个个人博客网站...',
-    slug: 'getting-started-with-nextjs'
-  },
-  {
-    id: 2,
-    title: 'React Hooks完全指南',
-    date: '2025-04-03',
-    excerpt: '深入了解React Hooks的使用方法和最佳实践...',
-    slug: 'complete-guide-to-react-hooks'
-  },
-  {
-    id: 3,
-    title: '现代CSS技巧与窍门',
-    date: '2025-04-02',
-    excerpt: '探索现代CSS的强大功能和一些有用的技巧...',
-    slug: 'modern-css-tips-and-tricks'
-  }
-];
+export async function getStaticProps() {
+  // 从文件系统获取所有文章
+  const posts = getAllPosts();
+  
+  // 获取最新的3篇文章作为特色文章
+  const featuredPosts = posts.slice(0, 3);
+  
+  return {
+    props: {
+      featuredPosts
+    },
+    // 每60秒重新生成页面
+    revalidate: 60
+  };
+}
 
-export default function Home() {
+export default function Home({ featuredPosts = [] }) {
   return (
     <Layout>
       {/* 英雄区 */}
@@ -114,4 +106,4 @@ export default function Home() {
       </section>
     </Layout>
   );
-} 
+}

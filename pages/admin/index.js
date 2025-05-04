@@ -1,62 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Layout, { updateBlogSettings } from '../../components/Layout';
 
-// 模拟的博客文章数据
-const initialPosts = [
-  {
-    id: 1,
-    title: '开始使用Next.js构建博客',
-    date: '2025-04-04',
-    status: '已发布',
-    slug: 'getting-started-with-nextjs'
-  },
-  {
-    id: 2,
-    title: 'React Hooks完全指南',
-    date: '2025-04-03',
-    status: '已发布',
-    slug: 'complete-guide-to-react-hooks'
-  },
-  {
-    id: 3,
-    title: '现代CSS技巧与窍门',
-    date: '2025-04-02',
-    status: '已发布',
-    slug: 'modern-css-tips-and-tricks'
-  },
-  {
-    id: 4,
-    title: '如何优化Next.js应用性能',
-    date: '2025-04-01',
-    status: '草稿',
-    slug: 'how-to-optimize-nextjs-performance'
-  },
-  {
-    id: 5,
-    title: '响应式网页设计基础',
-    date: '2025-03-30',
-    status: '已发布',
-    slug: 'responsive-web-design-basics'
-  },
-  {
-    id: 6,
-    title: 'JavaScript性能优化技巧',
-    date: '2025-03-28',
-    status: '草稿',
-    slug: 'javascript-performance-tips'
-  },
-  {
-    id: 7,
-    title: 'Web安全入门指南',
-    date: '2025-03-26',
-    status: '已发布',
-    slug: 'web-security-basics'
-  }
-];
-
 export default function AdminIndex() {
-  const [posts, setPosts] = useState(initialPosts);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('全部');
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,6 +19,29 @@ export default function AdminIndex() {
     github: 'https://github.com/Yizakl',
     twitter: ''
   });
+  
+  // 获取文章列表
+  const fetchPosts = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/posts');
+      if (!response.ok) {
+        throw new Error(`获取文章失败: ${response.status}`);
+      }
+      const data = await response.json();
+      setPosts(data);
+    } catch (err) {
+      console.error('获取文章列表出错:', err);
+      setError('获取文章列表失败，请稍后再试');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // 组件挂载时获取文章
+  useEffect(() => {
+    fetchPosts();
+  }, []);
   
   // 搜索和过滤处理
   const filteredPosts = posts.filter(post => {
@@ -85,9 +57,24 @@ export default function AdminIndex() {
   const totalPages = Math.ceil(filteredPosts.length / postsPerPage);
   
   // 删除文章处理
-  const handleDeletePost = (id) => {
+  const handleDeletePost = async (id) => {
     if (window.confirm('确定要删除这篇文章吗？')) {
-      setPosts(posts.filter(post => post.id !== id));
+      try {
+        const response = await fetch(`/api/posts?id=${id}`, {
+          method: 'DELETE',
+        });
+        
+        if (!response.ok) {
+          throw new Error(`删除失败: ${response.status}`);
+        }
+        
+        // 删除成功后更新列表
+        setPosts(posts.filter(post => post.id !== id));
+        alert('文章已成功删除');
+      } catch (err) {
+        console.error('删除文章出错:', err);
+        alert('删除文章失败: ' + err.message);
+      }
     }
   };
   
@@ -191,6 +178,29 @@ export default function AdminIndex() {
             </Link>
           </div>
         </div>
+        
+        {/* 错误提示 */}
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* 加载状态 */}
+        {loading && (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+          </div>
+        )}
         
         {/* 博客设置面板 */}
         {showSettings && (
@@ -373,69 +383,163 @@ export default function AdminIndex() {
         </div>
         
         {/* 文章列表 */}
-        <div className="bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-700">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-700">
-              <thead className="bg-gray-700">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">文章标题</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">发布日期</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">状态</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">操作</th>
-                </tr>
-              </thead>
-              <tbody className="bg-gray-800 divide-y divide-gray-700">
-                {currentPosts.length > 0 ? (
-                  currentPosts.map(post => (
-                    <tr key={post.id} className="hover:bg-gray-700">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-200">{post.title}</div>
-                        <div className="text-sm text-gray-400">/{post.slug}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{post.date}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          post.status === '已发布' ? 'bg-green-900 text-green-200' : 'bg-yellow-900 text-yellow-200'
-                        }`}>
-                          {post.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end space-x-2">
-                          <Link href={`/posts/${post.slug}`} className="text-gray-400 hover:text-gray-200" title="查看">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          </Link>
-                          <Link href={`/admin/edit/${post.id}`} className="text-indigo-400 hover:text-indigo-300" title="编辑">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </Link>
-                          <button 
-                            onClick={() => handleDeletePost(post.id)} 
-                            className="text-red-400 hover:text-red-300"
-                            title="删除"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
+        <div className="bg-white rounded-lg shadow overflow-hidden mb-8">
+          {/* 搜索和过滤 */}
+          <div className="p-4 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="搜索文章..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1); // 重置到第一页
+                  }}
+                />
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <label htmlFor="status-filter" className="text-sm text-gray-600">状态:</label>
+              <select
+                id="status-filter"
+                className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1); // 重置到第一页
+                }}
+              >
+                <option value="全部">全部</option>
+                <option value="已发布">已发布</option>
+                <option value="草稿">草稿</option>
+              </select>
+              
+              <button 
+                onClick={fetchPosts}
+                className="ml-2 bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded-md flex items-center"
+                disabled={loading}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 mr-1 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                刷新
+              </button>
+            </div>
+          </div>
+          
+          {!loading && (
+            <>
+              {/* 表格 */}
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      标题
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      日期
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      状态
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      操作
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {currentPosts.length > 0 ? (
+                    currentPosts.map((post) => (
+                      <tr key={post.id}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{post.title}</div>
+                          <div className="text-sm text-gray-500">/posts/{post.slug}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">{post.date}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${post.status === '已发布' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                            {post.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex justify-end space-x-2">
+                            <Link href={`/posts/${post.slug}`} className="text-primary-600 hover:text-primary-900" target="_blank">
+                              查看
+                            </Link>
+                            <Link href={`/admin/edit/${post.id}`} className="text-indigo-600 hover:text-indigo-900">
+                              编辑
+                            </Link>
+                            <button
+                              onClick={() => handleDeletePost(post.id)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              删除
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500">
+                        {error ? '加载文章失败' : '没有找到符合条件的文章'}
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-400">
-                      没有找到符合条件的文章
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  )}
+                </tbody>
+              </table>
+              
+              {/* 分页 */}
+              {filteredPosts.length > 0 && (
+                <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm text-gray-700">
+                        显示第 <span className="font-medium">{indexOfFirstPost + 1}</span> 到 <span className="font-medium">{Math.min(indexOfLastPost, filteredPosts.length)}</span> 条，共 <span className="font-medium">{filteredPosts.length}</span> 条
+                      </p>
+                    </div>
+                    <div>
+                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        <button
+                          onClick={() => handlePageChange(currentPage - 1)}
+                          disabled={currentPage === 1}
+                          className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          <span className="sr-only">上一页</span>
+                          <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                        
+                        {renderPageNumbers()}
+                        
+                        <button
+                          onClick={() => handlePageChange(currentPage + 1)}
+                          disabled={currentPage === totalPages}
+                          className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          <span className="sr-only">下一页</span>
+                          <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </nav>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
         
         {/* 分页 */}

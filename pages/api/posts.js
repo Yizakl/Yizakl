@@ -1,5 +1,7 @@
-// 模拟的博客文章数据存储
-let posts = [
+import { getAllPosts, getPostBySlug, savePost, deletePost, initializeDefaultPosts } from '../../lib/posts';
+
+// 默认文章数据，用于初始化文件系统
+const defaultPosts = [
   {
     id: 1,
     title: '开始使用Next.js构建博客',
@@ -64,12 +66,26 @@ let posts = [
   }
 ];
 
+// 初始化默认文章
+initializeDefaultPosts(defaultPosts);
+
 export default function handler(req, res) {
   // 处理获取所有文章请求
   if (req.method === 'GET') {
-    // 可以添加分页和过滤逻辑
-    const { status } = req.query;
+    // 获取单篇文章
+    if (req.query.slug) {
+      const post = getPostBySlug(req.query.slug);
+      if (!post) {
+        return res.status(404).json({ error: '未找到该文章' });
+      }
+      return res.status(200).json(post);
+    }
     
+    // 获取所有文章
+    const posts = getAllPosts();
+    
+    // 可以添加过滤逻辑
+    const { status } = req.query;
     if (status) {
       const filteredPosts = posts.filter(post => post.status === status);
       return res.status(200).json(filteredPosts);
@@ -87,20 +103,36 @@ export default function handler(req, res) {
       return res.status(400).json({ error: '请提供文章标题和内容' });
     }
     
+    // 生成slug
+    const postSlug = slug || title.toLowerCase().replace(/\s+/g, '-');
+    
+    // 检查slug是否已存在
+    const existingPost = getPostBySlug(postSlug);
+    if (existingPost) {
+      return res.status(400).json({ error: '文章slug已存在，请使用不同的标题或提供唯一的slug' });
+    }
+    
+    // 获取所有文章以确定新ID
+    const posts = getAllPosts();
+    
     // 生成新文章
     const newPost = {
-      id: posts.length + 1,
+      id: posts.length > 0 ? Math.max(...posts.map(p => p.id)) + 1 : 1,
       title,
       date: new Date().toISOString().split('T')[0],
       excerpt: excerpt || `${content.substring(0, 150)}...`,
       content,
       status: status || '草稿',
-      slug: slug || title.toLowerCase().replace(/\s+/g, '-'),
+      slug: postSlug,
       tags: tags || []
     };
     
-    // 将新文章添加到数组
-    posts.push(newPost);
+    // 保存新文章到文件系统
+    const success = savePost(newPost);
+    
+    if (!success) {
+      return res.status(500).json({ error: '保存文章失败' });
+    }
     
     return res.status(201).json(newPost);
   }
@@ -110,53 +142,63 @@ export default function handler(req, res) {
     const { id, title, content, excerpt, slug, status, tags } = req.body;
     
     // 简单的验证
-    if (!id || !title || !content) {
-      return res.status(400).json({ error: '请提供文章ID、标题和内容' });
+    if (!slug) {
+      return res.status(400).json({ error: '请提供文章slug' });
     }
     
     // 查找要更新的文章
-    const postIndex = posts.findIndex(post => post.id === parseInt(id));
+    const existingPost = getPostBySlug(slug);
     
-    if (postIndex === -1) {
+    if (!existingPost) {
       return res.status(404).json({ error: '未找到该文章' });
     }
     
     // 更新文章
-    posts[postIndex] = {
-      ...posts[postIndex],
-      title,
-      content,
-      excerpt: excerpt || posts[postIndex].excerpt,
-      slug: slug || posts[postIndex].slug,
-      status: status || posts[postIndex].status,
-      tags: tags || posts[postIndex].tags,
+    const updatedPost = {
+      ...existingPost,
+      title: title || existingPost.title,
+      content: content || existingPost.content,
+      excerpt: excerpt || existingPost.excerpt,
+      status: status || existingPost.status,
+      tags: tags || existingPost.tags,
       updatedAt: new Date().toISOString()
     };
     
-    return res.status(200).json(posts[postIndex]);
+    // 保存更新后的文章
+    const success = savePost(updatedPost);
+    
+    if (!success) {
+      return res.status(500).json({ error: '更新文章失败' });
+    }
+    
+    return res.status(200).json(updatedPost);
   }
   
   // 处理删除文章请求
   if (req.method === 'DELETE') {
-    const { id } = req.query;
+    const { slug } = req.query;
     
-    if (!id) {
-      return res.status(400).json({ error: '请提供文章ID' });
+    if (!slug) {
+      return res.status(400).json({ error: '请提供文章slug' });
     }
     
-    const postIndex = posts.findIndex(post => post.id === parseInt(id));
+    // 查找要删除的文章
+    const existingPost = getPostBySlug(slug);
     
-    if (postIndex === -1) {
+    if (!existingPost) {
       return res.status(404).json({ error: '未找到该文章' });
     }
     
     // 删除文章
-    const deletedPost = posts[postIndex];
-    posts = posts.filter(post => post.id !== parseInt(id));
+    const success = deletePost(slug);
     
-    return res.status(200).json(deletedPost);
+    if (!success) {
+      return res.status(500).json({ error: '删除文章失败' });
+    }
+    
+    return res.status(200).json({ message: '文章已成功删除', deletedPost: existingPost });
   }
   
   // 如果请求方法不支持
   return res.status(405).json({ error: '不支持的请求方法' });
-} 
+}
